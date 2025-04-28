@@ -4,7 +4,7 @@
 
 ---
 
-## 🧠 What Infera Does
+## What Infera Does
 
 - **Finds** real-time financials, leadership profiles, and market insights 📈
 - **Synthesizes** the information into competitive summaries 🔍
@@ -27,11 +27,9 @@
 
 ---
 
-## 🎯 Goal
+## What is the Purpose of Infera?
 
-Deliver fast, deep, and actionable company intelligence —  
-without the fluff, without the noise — through an automated, intelligent pipeline.
-
+Deliver fast, deep, and actionable company intelligence
 ---
 
 ## ⚙️ How Infera Works — Under the Hood

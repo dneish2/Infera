@@ -1,7 +1,6 @@
 # Infera 🔥
 
-When you need to know which companies matter, you shouldn't guess. You should infer.  
-**Infera** pulls the signal from the noise — turning raw company data into clear, ranked intelligence.
+**Infera** pulls the signal from the noise , turning raw company data into clear, ranked intelligence. This intelligence can now be utilized to guide investment decisions.
 
 ---
 

@@ -1,0 +1,24 @@
+%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph TD;
+	__start__[__start__]:::startclass;
+	__end__[__end__]:::endclass;
+	user_input_node([user_input_node]):::otherclass;
+	financial_data_node([financial_data_node]):::otherclass;
+	company_background_node([company_background_node]):::otherclass;
+	leadership_products_node([leadership_products_node]):::otherclass;
+	detailed_report_generation_node([detailed_report_generation_node]):::otherclass;
+	summarization_node([summarization_node]):::otherclass;
+	ranking_node([ranking_node]):::otherclass;
+	output_node([output_node]):::otherclass;
+	__start__ --> user_input_node;
+	company_background_node --> leadership_products_node;
+	detailed_report_generation_node --> summarization_node;
+	financial_data_node --> company_background_node;
+	leadership_products_node --> detailed_report_generation_node;
+	output_node --> __end__;
+	ranking_node --> output_node;
+	summarization_node --> ranking_node;
+	user_input_node --> financial_data_node;
+	classDef startclass fill:#ffdfba;
+	classDef endclass fill:#baffc9;
+	classDef otherclass fill:#fad7de;

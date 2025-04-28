@@ -1,6 +1,6 @@
 # Infera 🔥
 
-**Infera** pulls the signal from the noise , turning raw company data into clear, ranked intelligence. This intelligence can now be utilized to guide investment decisions.
+**Infera** pulls the signal from the noise , turning raw company data into clear, ranked intelligence. This intelligence can now be utilized to guide wise investment decisions.
 
 ---
 

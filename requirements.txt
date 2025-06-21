@@ -1,0 +1,13 @@
+beautifulsoup4
+google-api-python-client
+langgraph
+openai
+yfinance
+wikipedia
+requests
+python-dotenv
+pandas
+plotly
+kaleido
+streamlit
+typing_extensions

@@ -81,3 +81,22 @@ The app lets you:
 - Download the full Markdown report and radar chart images.
 - Clear the screen and run a new query.
 
+## 🐳 Docker Usage
+
+You can run Infera in a container using the provided **Dockerfile**.
+
+Build the image:
+
+```bash
+docker build -t infera .
+```
+
+Run the Streamlit app:
+
+```bash
+docker run -p 8501:8501 --env-file .env infera
+```
+
+Make sure your `.env` file contains the required API keys before running the
+container.
+

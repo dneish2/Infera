@@ -1,0 +1,13 @@
+yfinance
+wikipedia
+requests
+beautifulsoup4
+google-api-python-client
+openai
+python-dotenv
+pandas
+plotly
+kaleido
+lxml
+langgraph
+typing_extensions

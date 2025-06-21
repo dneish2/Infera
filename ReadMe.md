@@ -1,6 +1,6 @@
 # Infera 📄
 
-**Infera** pulls the signal from the noise , turning raw company data into clear, ranked intelligence. This intelligence can now be utilized to guide wise investment decisions.
+**Infera** uses Python, Yahoo Finance, Wikipedia and Google Search alongside a GPT-4–powered LangGraph workflow to turn raw company data into ranked insights, **interactive radar charts** and ready-to-share **Markdown Reports**.
 
 ---
 

@@ -48,6 +48,7 @@ if run_clicked:
             # Attempt to display radar chart image
             safe_name = re.sub(r"\W+", "_", company)
             chart_path = os.path.join("charts", f"{safe_name}_radar.png")
+            chart_html_path = os.path.join("charts_html", f"{safe_name}_radar.html")
             if os.path.exists(chart_path):
                 st.image(chart_path)
                 with open(chart_path, "rb") as f:
@@ -55,6 +56,15 @@ if run_clicked:
                         label=f"Download {company} chart",
                         data=f,
                         file_name=os.path.basename(chart_path),
+                    )
+            if os.path.exists(chart_html_path):
+                with open(chart_html_path, "r") as f:
+                    st.components.v1.html(f.read(), height=600)
+                with open(chart_html_path, "rb") as f:
+                    st.download_button(
+                        label=f"Download {company} interactive chart",
+                        data=f,
+                        file_name=os.path.basename(chart_html_path),
                     )
 
         # Combined markdown for download

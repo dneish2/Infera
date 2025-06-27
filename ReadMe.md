@@ -14,6 +14,14 @@
 
 ---
 
+## 📺 Watch the Demo
+
+Here’s a short walkthrough of the full app experience:
+
+![Infera Demo](https://github.com/dneish2/Infera/raw/mainInfera-101.gif)
+
+[Watch the Full Infera Demo](https://youtu.be/C_eU21nwR-8)
+
 ## 🛠️ Core Tools and Technologies
 
 | Tool | Purpose |

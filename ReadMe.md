@@ -11,6 +11,7 @@
 - **Ranks** companies based on financial health, leadership strength, and market position 🏆
 - **Visualizes** performance with interactive radar charts 📊
 - **Outputs** a clean Markdown report ready for action 📄
+- **Highlights** recent news and multiple ongoing lawsuits ⚖️
 
 ---
 
@@ -87,7 +88,16 @@ The app lets you:
 - Input one or more companies (comma separated).
 - View the generated rankings and individual company reports.
 - Download the full Markdown report and radar chart images.
+- Edit the Markdown report directly in the browser.
+- Preview edits live and export the final version to PDF with a click.
+- Subscribe for updates via the built-in email form.
 - Clear the screen and run a new query.
+
+> **Heads-up:** PDF export relies on `pdfkit` plus the [wkhtmltopdf](https://wkhtmltopdf.org/) binary. Install the binary locally or include it in your Docker image to enable one-click PDF downloads.
+
+## 📋 Data Quality & Automation Plan
+
+Infera now documents the approach for validating financial data across multiple Yahoo Finance endpoints, automating executive bio enrichment, and scaling data ingestion workflows. Read more in [`docs/data_quality_plan.md`](docs/data_quality_plan.md).
 
 ## 🐳 Docker Usage
 

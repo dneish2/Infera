@@ -1,5 +1,6 @@
 import re
 import os
+import math
 import logging
 import yfinance as yf
 import wikipedia
@@ -191,38 +192,150 @@ class CompanyAnalyzer:
                 ticker = self.verify_and_get_ticker(company)
                 if ticker:
                     company_data['ticker'] = ticker
-                    try:
-                        data = yf.Ticker(ticker).info
-                        proper_name = data.get("longName") or data.get("shortName") or company
-                        company_data["company_name"] = proper_name
-                        financial_data = {
-                            "Full Time Employees": data.get("fullTimeEmployees", "N/A"),
-                            "Market Cap": data.get("marketCap", "N/A"),
-                            "Total Revenue": data.get("totalRevenue", "N/A"),
-                            "Quarterly Revenue": data.get("revenueQuarterly", "N/A"),
-                            "Profit Margin": data.get("profitMargins", "N/A"),
-                            "Free Cash Flow": data.get("freeCashflow", "N/A"),
-                            "Day Low": data.get("dayLow", "N/A"),
-                            "Day High": data.get("dayHigh", "N/A"),
-                            "Revenue Growth": data.get("revenueGrowth", "N/A"),
-                            "Total Cash": data.get("totalCash", "N/A"),
-                            "Total Debt": data.get("totalDebt", "N/A")
-                        }
-                        if financial_data["Quarterly Revenue"] in [None, "N/A"]:
-                            ticker_obj = yf.Ticker(ticker)
-                            qf = ticker_obj.quarterly_financials
-                            if not qf.empty and "Total Revenue" in qf.index:
-                                financial_data["Quarterly Revenue"] = qf.loc["Total Revenue"].iloc[0]
-                        company_data["financial_data"] = financial_data
-                    except Exception as e:
-                        logger.error(f"Error retrieving financial data for {ticker}: {e}")
-                        company_data["financial_data"] = {}
+                    snapshot = self.build_financial_snapshot(ticker)
+                    company_data["company_name"] = snapshot.get("company_name", company)
+                    company_data["financial_data"] = snapshot.get("metrics", {})
+                    company_data["financial_sources"] = snapshot.get("sources", [])
                 else:
                     company_data["financial_data"] = {}
+                    company_data["financial_sources"] = []
             else:
                 company_data["financial_data"] = {}
+                company_data["financial_sources"] = []
             company_data_list.append(company_data)
         return {"company_data": company_data_list}
+
+    def build_financial_snapshot(self, ticker: str) -> dict:
+        ticker_obj = yf.Ticker(ticker)
+        metrics: dict[str, object] = {}
+        metric_sources: dict[str, str] = {}
+        sources: set[str] = set()
+
+        def assign_metric(name: str, value, source: str) -> None:
+            if self._is_missing_value(value):
+                return
+            metrics[name] = value
+            metric_sources[name] = source
+            sources.add(source)
+
+        try:
+            info = ticker_obj.info or {}
+        except Exception as e:
+            logger.warning(f"Primary yfinance info lookup failed for {ticker}: {e}")
+            info = {}
+
+        try:
+            fast_info_obj = getattr(ticker_obj, "fast_info", {})
+            if hasattr(fast_info_obj, "items"):
+                fast_info = dict(fast_info_obj.items())
+            elif isinstance(fast_info_obj, dict):
+                fast_info = fast_info_obj
+            else:
+                fast_info = {}
+        except Exception as e:
+            logger.warning(f"fast_info lookup failed for {ticker}: {e}")
+            fast_info = {}
+
+        company_name = (
+            info.get("longName")
+            or info.get("shortName")
+            or fast_info.get("shortName")
+            or ticker
+        )
+
+        mapping = {
+            "Full Time Employees": {"info": ["fullTimeEmployees"]},
+            "Market Cap": {"info": ["marketCap"], "fast": ["market_cap"]},
+            "Total Revenue": {"info": ["totalRevenue"], "fallback": "income_statement"},
+            "Quarterly Revenue": {"info": ["revenueQuarterly"], "fallback": "quarterly_financials"},
+            "Profit Margin": {"info": ["profitMargins"]},
+            "Free Cash Flow": {"info": ["freeCashflow"], "fallback": "cashflow"},
+            "Day Low": {"info": ["dayLow"], "fast": ["day_low"]},
+            "Day High": {"info": ["dayHigh"], "fast": ["day_high"]},
+            "Revenue Growth": {"info": ["revenueGrowth"]},
+            "Total Cash": {"info": ["totalCash"], "fallback": "balance_sheet_cash"},
+            "Total Debt": {"info": ["totalDebt"], "fallback": "balance_sheet_debt"},
+        }
+
+        for metric_name, config_map in mapping.items():
+            assigned = False
+            for key in config_map.get("info", []):
+                if key and key in info and not self._is_missing_value(info.get(key)):
+                    assign_metric(metric_name, info[key], "yfinance:info")
+                    assigned = True
+                    break
+            if not assigned and config_map.get("fast"):
+                for key in config_map["fast"]:
+                    if key and key in fast_info and not self._is_missing_value(fast_info.get(key)):
+                        assign_metric(metric_name, fast_info[key], "yfinance:fast_info")
+                        assigned = True
+                        break
+            if not assigned and config_map.get("fallback"):
+                source_hint = config_map["fallback"]
+                fallback_value = self._fallback_financial_metric(
+                    ticker_obj, metric_name, source_hint
+                )
+                if not self._is_missing_value(fallback_value):
+                    assign_metric(metric_name, fallback_value, f"yfinance:{source_hint}")
+
+            if metric_name not in metrics:
+                metrics[metric_name] = "N/A"
+
+        metrics["regularMarketTime"] = info.get("regularMarketTime") or fast_info.get(
+            "regular_market_time"
+        )
+        if self._is_missing_value(metrics["regularMarketTime"]):
+            metrics.pop("regularMarketTime", None)
+
+        return {
+            "company_name": company_name,
+            "metrics": metrics,
+            "sources": sorted(sources),
+            "metric_sources": metric_sources,
+        }
+
+    def _fallback_financial_metric(self, ticker_obj, metric_name: str, source_hint: str):
+        try:
+            if source_hint == "income_statement":
+                statement = ticker_obj.income_stmt
+                if hasattr(statement, "empty") and not statement.empty:
+                    if metric_name == "Total Revenue" and "Total Revenue" in statement.index:
+                        return statement.loc["Total Revenue"].iloc[0]
+            if source_hint == "quarterly_financials":
+                qf = ticker_obj.quarterly_financials
+                if hasattr(qf, "empty") and not qf.empty:
+                    if metric_name == "Quarterly Revenue" and "Total Revenue" in qf.index:
+                        return qf.loc["Total Revenue"].iloc[0]
+            if source_hint == "cashflow":
+                cf = ticker_obj.cashflow
+                if hasattr(cf, "empty") and not cf.empty:
+                    if "Free Cash Flow" in cf.index:
+                        return cf.loc["Free Cash Flow"].iloc[0]
+            if source_hint == "balance_sheet_cash":
+                bs = ticker_obj.balance_sheet
+                if hasattr(bs, "empty") and not bs.empty:
+                    for key in ["Cash And Cash Equivalents", "CashAndCashEquivalentsAtCarryingValue"]:
+                        if key in bs.index:
+                            return bs.loc[key].iloc[0]
+            if source_hint == "balance_sheet_debt":
+                bs = ticker_obj.balance_sheet
+                if hasattr(bs, "empty") and not bs.empty:
+                    for key in ["Total Debt", "Long Term Debt"]:
+                        if key in bs.index:
+                            return bs.loc[key].iloc[0]
+        except Exception as e:
+            logger.debug(
+                f"Fallback lookup for {metric_name} using {source_hint} failed: {e}"
+            )
+        return None
+
+    @staticmethod
+    def _is_missing_value(value) -> bool:
+        if value in (None, "N/A", "", "None"):
+            return True
+        if isinstance(value, float) and math.isnan(value):
+            return True
+        return False
 
     def company_background_node(self, state, config):
         for company_data in state['company_data']:
@@ -406,8 +519,12 @@ class CompanyAnalyzer:
         ])
         if financial:
             for key, value in financial.items():
-                formatted_value = self.format_value(value)
+                formatted_value = self.format_value(value, key)
                 report_lines.append(f"| **{key}** | {formatted_value} |")
+            sources = company_data.get("financial_sources")
+            if sources:
+                readable_sources = ", ".join(sources)
+                report_lines.append(f"_Financial data sources: {readable_sources}_")
         else:
             report_lines.append("| No financial data available. |")
 
@@ -430,6 +547,10 @@ class CompanyAnalyzer:
         lawsuit_info = self.get_lawsuit_snapshot(company_name, MY_GOOGLE_API_KEY, MY_CSE_ID)
         report_lines.append(lawsuit_info)
 
+        report_lines.append("### Latest News")
+        news_info = self.get_news_snapshot(company_name, MY_GOOGLE_API_KEY, MY_CSE_ID)
+        report_lines.append(news_info)
+
         return "\n\n".join(report_lines)
 
     def generate_markdown_report(self, ranked_companies, detailed_reports):
@@ -444,10 +565,14 @@ class CompanyAnalyzer:
         print(f"Markdown report generated as '{report_file_path}'")
 
     # --- Utility Functions ---
-    def format_value(self, value):
+    def format_value(self, value, metric_name: str | None = None):
         if value is None or value == "N/A":
             return 'N/A'
         elif isinstance(value, (int, float)):
+            if metric_name in {"Profit Margin", "Revenue Growth"}:
+                return f"{value * 100:.2f}%"
+            if metric_name == "Quarterly Revenue" and abs(value) < 1:
+                return f"${value:,.2f}"
             if abs(value) >= 1e12:
                 return f"${value/1e12:,.2f} Trillion"
             elif abs(value) >= 1e9:
@@ -520,6 +645,10 @@ class CompanyAnalyzer:
             except Exception as e:
                 logger.error(f"Error retrieving bio for {name}: {e}")
                 bio = "Biography not available."
+            if not bio or len(bio.split()) < 10:
+                snippet = self.enrich_executive_bio_from_search(name, company_name)
+                if snippet:
+                    bio = snippet
             executive_bios.append({
                 "title": role if role else "N/A",
                 "name": name,
@@ -527,14 +656,44 @@ class CompanyAnalyzer:
             })
         return executive_bios
 
+    def enrich_executive_bio_from_search(self, name: str, company_name: str) -> str | None:
+        query = f"{name} {company_name} leadership biography"
+        results = self.google_search(query, MY_GOOGLE_API_KEY, MY_CSE_ID, num=2)
+        for item in results:
+            snippet = item.get("snippet")
+            if snippet:
+                return snippet.strip()
+        return None
+
     def get_lawsuit_snapshot(self, company_name, api_key, cse_id):
         search_term = f"{company_name} lawsuit"
-        results = self.google_search(search_term, api_key, cse_id, num=1)
-        if results:
-            snippet = results[0].get('snippet', 'No lawsuit information found.')
-            link = results[0].get('link', '')
-            return f"{snippet}\n\nRead more: {link}" if link else snippet
-        return "No lawsuit information found."
+        results = self.google_search(search_term, api_key, cse_id, num=3)
+        if not results:
+            return "No lawsuit information found."
+        lines = []
+        for item in results[:3]:
+            snippet = item.get('snippet', '').strip()
+            link = item.get('link', '').strip()
+            line = f"- {snippet}"
+            if link:
+                line += f" ([link]({link}))"
+            lines.append(line)
+        return "\n".join(lines)
+
+    def get_news_snapshot(self, company_name, api_key, cse_id):
+        search_term = f"{company_name} news"
+        results = self.google_search(search_term, api_key, cse_id, num=3)
+        if not results:
+            return "No recent news found."
+        lines = []
+        for item in results[:3]:
+            snippet = item.get('snippet', '').strip()
+            link = item.get('link', '').strip()
+            line = f"- {snippet}"
+            if link:
+                line += f" ([link]({link}))"
+            lines.append(line)
+        return "\n".join(lines)
 
     def google_search(self, search_term, api_key, cse_id, **kwargs):
         try:

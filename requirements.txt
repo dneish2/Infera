@@ -11,3 +11,6 @@ plotly
 kaleido
 streamlit
 typing_extensions
+markdown
+markdown-it-py
+pdfkit

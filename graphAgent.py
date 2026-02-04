@@ -227,7 +227,12 @@ class CompanyAnalyzer:
     def company_background_node(self, state, config):
         for company_data in state['company_data']:
             company_name = company_data['company_name']
-            search_result = self.google_search(f"{company_name} company overview", config["api_keys"]["google_search"], config["api_keys"]["google_cse_id"], num=1)
+            # Extract keys safely from the configurable config
+            keys = config.get("configurable", {}).get("api_keys", {})
+            google_key = keys.get("google_search")
+            cse_id = keys.get("google_cse_id")
+
+            search_result = self.google_search(f"{company_name} company overview", google_key, cse_id, num=1)
             company_data['google_overview'] = search_result[0].get('snippet', '') if search_result else ""
         return {"company_data": state['company_data']}
 
@@ -264,9 +269,10 @@ class CompanyAnalyzer:
         return {"ranked_companies": state['ranked_companies'], "company_details": state['detailed_reports']}
 
     def analyze_companies(self, user_input, api_keys):
-        state = {"user_input": user_input}
-        config = {"api_keys": api_keys}
-        return self.compiled_graph.invoke(state, config)
+        # We put user_input in the state, and api_keys in 'configurable'
+        initial_state = {"user_input": user_input}
+        config = {"configurable": {"api_keys": api_keys}} 
+        return self.compiled_graph.invoke(initial_state, config)
 
     # --- New: Radar Chart Generation Method ---
     def generate_radar_chart(self, company_data):
@@ -439,7 +445,7 @@ class CompanyAnalyzer:
         for rep in detailed_reports:
             report += rep + "\n\n"
         report_file_path = os.path.join(os.path.dirname(__file__), "company_analysis_report.md")
-        with open(report_file_path, "w") as file:
+        with open(report_file_path, "w", encoding="utf-8") as file:
             file.write(report)
         print(f"Markdown report generated as '{report_file_path}'")
 

@@ -11,3 +11,4 @@ plotly
 kaleido
 streamlit
 typing_extensions
+lxml

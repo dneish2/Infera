@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from graphAgent import CompanyAnalyzer, MY_GOOGLE_API_KEY, MY_CSE_ID, MY_OPENAI_API_KEY
 
 load_dotenv()
-
 analyzer = CompanyAnalyzer()
 
 st.title("Infera Company Analyzer")
@@ -30,12 +29,14 @@ if run_clicked:
         st.warning("Please enter at least one company name.")
     else:
         with st.spinner("Running analysis..."):
-            api_keys = {
-                "google_search": MY_GOOGLE_API_KEY,
-                "google_cse_id": MY_CSE_ID,
-                "openai": MY_OPENAI_API_KEY,
+            # Pull directly from OS to ensure they are NOT None
+            current_keys = {
+                "google_search": os.getenv("MY_GOOGLE_API_KEY"),
+                "google_cse_id": os.getenv("MY_CSE_ID"),
+                "openai": os.getenv("MY_OPENAI_API_KEY"),
             }
-            result = analyzer.analyze_companies(companies, api_keys)
+            # Call the analyzer with these fresh keys
+            result = analyzer.analyze_companies(companies, current_keys)
         st.success("Analysis complete!")
 
         # Rankings summary
